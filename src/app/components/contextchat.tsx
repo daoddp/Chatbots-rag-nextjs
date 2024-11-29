@@ -78,10 +78,15 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
             if (!selectedChat && chatId) {
                 setSelectedChat(chatId);
-                setHistory((prev) => [
-                    ...prev,
-                    { id: chatId, title: `Chat: ${input}`, messages: updatedMessages },
-                ]);
+                const newChat = { id: chatId, title: `Chat: ${input}`, messages: updatedMessages };
+                setHistory((prev) => [...prev, newChat]); 
+                // fetch('/api/chat/history')
+                //     .then(res => res.json())
+                //     .then(data => {
+                //         console.log('Fetched history:', data);
+                //         setHistory(data);
+                //     })
+                //     .catch(err => console.error('Error syncing chat history:', err));
             } else {
                 setHistory((prev) =>
                     prev.map((chat) =>
@@ -94,6 +99,38 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const handleSuggestionClick = async (question: string) => {
+        if (!question.trim()) return;
+    
+        const newMessages = [...messages, { role: 'user', content: question }];
+        setMessages(newMessages);
+        setInput(''); // Xóa input nếu cần
+    
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: newMessages, chatId: selectedChat }),
+            });
+    
+            if (!response.ok) throw new Error('Failed to fetch from API');
+    
+            const { answer, chatId } = await response.json();
+            const botMessage = { role: 'assistant', content: answer };
+    
+            const updatedMessages = [...newMessages, botMessage];
+            setMessages(updatedMessages);
+    
+            if (chatId) {
+                setSelectedChat(chatId);
+                const newChat = { id: chatId, title: `Chat: ${question}`, messages: updatedMessages };
+                setHistory((prev) => [...prev, newChat]);
+            }
+        } catch (error) {
+            console.error('Error occurred:', error);
+        }
+    };
+    
     return (
         <ChatContext.Provider
             value={{
@@ -109,6 +146,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                 toggleTheme,
                 startNewChat,
                 selectChat,
+                handleSuggestionClick,
                 handleSubmit,
             }}
         >
