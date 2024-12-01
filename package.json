@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.5.1",
     "@heroicons/react": "^2.2.0",
     "@langchain/openai": "^0.0.28",
     "@radix-ui/react-slot": "^1.0.2",
