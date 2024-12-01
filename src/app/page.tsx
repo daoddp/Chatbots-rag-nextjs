@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
 import { redirect } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { ChatProvider } from "./components/contextchat";
-import { Sidebar } from "./components/sidebar";
-import { Chat } from "./components/chat";
+import { ChatProvider } from "../features/chat/hooks/use-chat";
+import { Sidebar } from "../features/chat/components/sidebar";
+import { Chat } from "../features/chat/components/chat";
 
 export default function Page() {
   const { isLoaded, isSignedIn } = useAuth();
