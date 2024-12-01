@@ -2,14 +2,14 @@
 
 import { FolderIcon, PlusIcon } from "@heroicons/react/24/solid";
 import { useChat } from "../hooks/use-chat";
-import { FormEvent, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export const Sidebar = () => {
-  const { theme, setHistory, history, selectedChat, selectChat, startNewChat } =
-    useChat();
+  const { theme, setHistory, history, selectedChat, selectChat, startNewChat } = useChat();
+
   // Lấy danh sách lịch sử từ backend
   useEffect(() => {
-    fetch("/api/chat/history")
+    fetch("/api/chats")
       .then((res) => res.json())
       .then((data) => {
         console.log("Fetched history:", data);

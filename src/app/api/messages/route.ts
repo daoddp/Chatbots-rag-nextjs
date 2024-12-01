@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const validatedMessage = promptMessageSchema.parse(message);
-
+    console.log(validatedMessage)
     const chat = chatId
       ? await prisma.chat.findUnique({
           where: { id: chatId },
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(botMessage)
   } catch (error) {
+    console.log(error)
     return NextResponse.json({ error }, { status: 500 });
   }
 }

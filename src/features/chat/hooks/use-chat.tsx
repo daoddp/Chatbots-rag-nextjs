@@ -1,5 +1,7 @@
 "use client";
 
+import { NextRouter } from 'next/router';
+
 import React, {
   createContext,
   useContext,
@@ -33,6 +35,7 @@ interface ChatContextType {
   startNewChat: () => void;
   selectChat: (id: string) => void;
   handleSubmit: (event: FormEvent) => Promise<void>;
+  handleSuggestionClick: (question: string) => void
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -53,57 +56,70 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     setMessages([]);
   };
 
-  const selectChat = (id: string) => {
+  const selectChat = async (id: string, router: NextRouter) => {
     setSelectedChat(id);
-    const chat = history.find((chat) => chat.id === id);
-    if (chat) setMessages(chat.messages);
-  };
+  
+    try {
+      // Fetch dữ liệu từ API
+      const response = await fetch(`/api/chats/${id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat data");
+      }
+  
+      const chat = await response.json();
+  
+      // Cập nhật state tin nhắn với dữ liệu từ API
+      setMessages(chat.messages);
 
+      // Điều hướng tới URL mới
+      router.push(`/chat/${id}`);
+
+    } catch (error) {
+      console.error("Error fetching chat:", error);
+      // Xử lý lỗi (nếu cần)
+    }
+  };
+  
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!input.trim()) return;
 
-    const newMessages = [...messages, { role: "user", content: input }];
-    setMessages(newMessages);
+    const newMessage = { role: "user", content: input };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
     setInput("");
-
+    
+    const url = selectedChat ? `api/messages?chatId=${selectedChat}` : `api/messages`
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch( url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, chatId: selectedChat }),
+        body: JSON.stringify(newMessage),
       });
 
       if (!response.ok) throw new Error("Failed to fetch from API");
+      const { content, chatId } = await response.json();
 
-      const { answer, chatId } = await response.json();
-      const botMessage = { role: "assistant", content: answer };
+      const botMessage = { role: "assistant", content: content };
 
-      const updatedMessages = [...newMessages, botMessage];
-      setMessages(updatedMessages);
-
-      if (!selectedChat && chatId) {
-        setSelectedChat(chatId);
-        const newChat = {
-          id: chatId,
-          title: `Chat: ${input}`,
-          messages: updatedMessages,
-        };
-        setHistory((prev) => [...prev, newChat]);
-        // fetch('/api/chat/history')
-        //     .then(res => res.json())
-        //     .then(data => {
-        //         console.log('Fetched history:', data);
-        //         setHistory(data);
-        //     })
-        //     .catch(err => console.error('Error syncing chat history:', err));
-      } else {
-        setHistory((prev) =>
-          prev.map((chat) =>
-            chat.id === chatId ? { ...chat, messages: updatedMessages } : chat,
-          ),
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+      setHistory((prevHistory) => {
+        const updatedHistory = prevHistory.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: [...chat.messages, newMessage, botMessage],
+              }
+            : chat,
         );
-      }
+        if (!prevHistory.find((chat) => chat.id === chatId)) {
+          updatedHistory.push({
+            id: chatId,
+            title: newMessage.content,
+            messages: [newMessage, botMessage],
+          });
+        }
+        return updatedHistory;
+      });
     } catch (error) {
       console.error("Error occurred:", error);
     }
@@ -112,34 +128,41 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const handleSuggestionClick = async (question: string) => {
     if (!question.trim()) return;
 
-    const newMessages = [...messages, { role: "user", content: question }];
-    setMessages(newMessages);
-    setInput(""); // Xóa input nếu cần
-
+    const newMessage = { role: "user", content: question };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setInput("");
+    
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, chatId: selectedChat }),
+        body: JSON.stringify(newMessage),
       });
 
       if (!response.ok) throw new Error("Failed to fetch from API");
+      const { content, chatId } = await response.json();
 
-      const { answer, chatId } = await response.json();
-      const botMessage = { role: "assistant", content: answer };
+      const botMessage = { role: "assistant", content: content };
 
-      const updatedMessages = [...newMessages, botMessage];
-      setMessages(updatedMessages);
-
-      if (chatId) {
-        setSelectedChat(chatId);
-        const newChat = {
-          id: chatId,
-          title: `Chat: ${question}`,
-          messages: updatedMessages,
-        };
-        setHistory((prev) => [...prev, newChat]);
-      }
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+      setHistory((prevHistory) => {
+        const updatedHistory = prevHistory.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: [...chat.messages, newMessage, botMessage],
+              }
+            : chat,
+        );
+        if (!prevHistory.find((chat) => chat.id === chatId)) {
+          updatedHistory.push({
+            id: chatId,
+            title: newMessage.content,
+            messages: [newMessage, botMessage],
+          });
+        }
+        return updatedHistory;
+      });
     } catch (error) {
       console.error("Error occurred:", error);
     }

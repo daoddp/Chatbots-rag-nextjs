@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitch } from "@/components/ui/switch";
 import { useChat } from "../hooks/use-chat";
+import { UserButton } from "@clerk/nextjs";
 
 export const Chat = () => {
   const {
@@ -13,7 +14,6 @@ export const Chat = () => {
     input,
     handleSubmit,
     setInput,
-    setMessages,
     toggleTheme,
     handleSuggestionClick,
   } = useChat();
@@ -46,7 +46,11 @@ export const Chat = () => {
     >
       <header className="p-4 border-b flex justify-between items-center">
         <h1 className="text-2xl font-bold">UIT ChatBot</h1>
-        <ThemeSwitch theme={theme} toggleTheme={toggleTheme} />
+        <div className="flex items-center gap-4">
+          <ThemeSwitch theme={theme} toggleTheme={toggleTheme} />
+          {/* Display UserButton next to ThemeSwitch */}
+          <UserButton />
+        </div>
       </header>
 
       <section className="flex-grow p-4 overflow-y-auto" ref={chatParent}>
