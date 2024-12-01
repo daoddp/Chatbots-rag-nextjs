@@ -1,23 +1,38 @@
-'use client';
+import { auth } from '@clerk/nextjs/server';
+import { notFound, redirect } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { ChatProvider } from '@/features/chat/hooks/use-chat';
+import { Chat } from '@/features/chat/components/chat';
+import { Sidebar } from '@/features/chat/components/sidebar';
 
-import { useEffect } from 'react';
-import { useChat } from '@/features/chat/hooks/use-chat';
 
-const ChatPage = ({ params }: { params: { id: string } }) => {
-  const { id } = params;
-  const { setSelectedChat } = useChat();
+export default async function WithIdChatPage({ params }: { params: { id: string } }) {
+  const id = params.id;
+  const { userId } = await auth();
 
-  useEffect(() => {
-    // Thiết lập chat hiện tại và fetch dữ liệu
-    setSelectedChat(id);
-  }, [id, setSelectedChat]);
+  if (!userId) {
+    redirect("/login");
+  }
+
+  const chat = await prisma.chat.findUnique({
+    where: { id },
+    include: {
+      messages: true,
+    },
+  });
+
+  if (!chat || chat.userId !== userId) {
+    notFound();
+  }
 
   return (
-    <div>
-      <h1>Chat ID: {id}</h1>
-      {/* Render nội dung chat */}
-    </div>
-  );
-};
+    <ChatProvider chat={chat}>
+      <div className="flex w-full h-screen">
+        <Sidebar />
+        <Chat />
+      </div>
+    </ChatProvider>
+  )
 
-export default ChatPage;
+}
+

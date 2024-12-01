@@ -3,6 +3,7 @@
 import { FolderIcon, PlusIcon } from "@heroicons/react/24/solid";
 import { useChat } from "../hooks/use-chat";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export const Sidebar = () => {
   const { theme, setHistory, history, selectedChat, selectChat, startNewChat } = useChat();
@@ -40,22 +41,24 @@ export const Sidebar = () => {
       ) : (
         <ul>
           {history.map((chat) => (
-            <li
-              key={chat.id}
-              className={`p-2 rounded-full cursor-pointer transition-colors duration-200 
-                                ${
-                                  selectedChat === chat.id
-                                    ? theme === "light"
-                                      ? "bg-gray-300"
-                                      : "bg-gray-700"
-                                    : theme === "light"
-                                      ? "hover:bg-blue-600"
-                                      : "hover:bg-yellow-400"
-                                }`}
-              onClick={() => selectChat(chat.id)}
-            >
-              {chat.title}
-            </li>
+            <Link href={`/chat/${chat.id}`}>
+              <li
+                key={chat.id}
+                className={`p-2 rounded-full cursor-pointer transition-colors duration-200 
+                                  ${
+                                    selectedChat === chat.id
+                                      ? theme === "light"
+                                        ? "bg-gray-300"
+                                        : "bg-gray-700"
+                                      : theme === "light"
+                                        ? "hover:bg-blue-600"
+                                        : "hover:bg-yellow-400"
+                                  }`}
+                // onClick={() => selectChat(chat.id)}
+              >
+                {chat.title}
+              </li>
+            </Link>
           ))}
         </ul>
       )}
