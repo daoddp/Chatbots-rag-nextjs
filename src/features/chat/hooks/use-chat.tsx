@@ -1,7 +1,7 @@
 "use client";
 
 import { Chat, Message, Prisma } from '@prisma/client';
-import { NextRouter } from 'next/router';
+import { MessageClient, ChatClient } from '../types/message';
 
 import React, {
   createContext,
@@ -15,16 +15,19 @@ import React, {
 type WithMessagesChat = Prisma.ChatGetPayload<{include: {messages: true}}>
 
 interface ChatContextType {
-  messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  messages: MessageClient[];
+  setMessages: React.Dispatch<React.SetStateAction<MessageClient[]>>;
   input: string;
   setInput: React.Dispatch<React.SetStateAction<string>>;
-  history: Chat[];
-  setHistory: React.Dispatch<React.SetStateAction<Chat[]>>;
+  history: ChatClient[];
+  setHistory: React.Dispatch<React.SetStateAction<ChatClient[]>>;
   selectedChat: string | null;
   setSelectedChat: React.Dispatch<React.SetStateAction<string | null>>;
+  sidebarOpen: true | false;
+  setSidebarOpen: React.Dispatch<React.SetStateAction<true | false>>;
   theme: "light" | "dark";
   toggleTheme: () => void;
+  toggleSidebar: () => void;
   startNewChat: () => void;
   handleSubmit: (event: FormEvent) => Promise<void>;
   handleSuggestionClick: (question: string) => void
@@ -33,20 +36,37 @@ interface ChatContextType {
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider = ({ chat, children }: { chat?: WithMessagesChat, children: ReactNode }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<MessageClient[]>([]);
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<Chat[]>([]);
+  const [history, setHistory] = useState<ChatClient[]>([]);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("theme");
+      return savedTheme ? (savedTheme as "light" | "dark") : "light";
+    }
+    return "light";
+  });
 
   useEffect(() => {
     if (chat) {
       setMessages(chat.messages)
+      setSelectedChat(chat.id)
     }
   }, [chat])
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    // Lưu theme vào localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("theme", newTheme);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);  // Toggle trạng thái mở/đóng của sidebar
   };
 
   const startNewChat = () => {
@@ -55,91 +75,90 @@ export const ChatProvider = ({ chat, children }: { chat?: WithMessagesChat, chil
   };
   
   const handleSubmit = async (event: FormEvent) => {
-    // event.preventDefault();
-    // if (!input.trim()) return;
+    event.preventDefault();
+    if (!input.trim()) return;
 
-    // const newMessage = { role: "user", content: input };
-    // setMessages((prevMessages) => [...prevMessages, newMessage]);
-    // setInput("");
+    const newMessage: MessageClient = { role: "user", content: input };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setInput("");
     
-    // const url = selectedChat ? `api/messages?chatId=${selectedChat}` : `api/messages`
-    // try {
-    //   const response = await fetch( url, {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify(newMessage),
-    //   });
+    const url = selectedChat ? `/api/messages?chatId=${selectedChat}` : `/api/messages`
+    try {
+      const response = await fetch( url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMessage),
+      });
 
-    //   if (!response.ok) throw new Error("Failed to fetch from API");
-    //   const { content, chatId } = await response.json();
+      if (!response.ok) throw new Error("Failed to fetch from API");
+      const { content, chatId } = await response.json();
 
-    //   const botMessage = { role: "assistant", content: content };
+      const botMessage: MessageClient = { role: "assistant", content: content };
 
-    //   setMessages((prevMessages) => [...prevMessages, botMessage]);
-    //   setHistory((prevHistory) => {
-    //     const updatedHistory = prevHistory.map((chat) =>
-    //       chat.id === chatId
-    //         ? {
-    //             ...chat,
-    //             messages: [...chat.messages, newMessage, botMessage],
-    //           }
-    //         : chat,
-    //     );
-    //     if (!prevHistory.find((chat) => chat.id === chatId)) {
-    //       updatedHistory.push({
-    //         id: chatId,
-    //         title: newMessage.content,
-    //         messages: [newMessage, botMessage],
-    //       });
-    //     }
-    //     return updatedHistory;
-    //   });
-    // } catch (error) {
-    //   console.error("Error occurred:", error);
-    // }
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+      setHistory((prevHistory) => {
+        const updatedHistory = prevHistory.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                // messages: [...(chat as ChatClient & { messages: MessageClient[] }).messages, newMessage, botMessage],
+              }
+            : chat,
+        );
+        if (!prevHistory.find((chat) => chat.id === chatId)) {
+          updatedHistory.push({
+            id: chatId,
+            title: newMessage.content,
+            messages: [newMessage, botMessage],
+          } as ChatClient);
+        }
+        return updatedHistory;
+      });
+    } catch (error) {
+      console.error("Error occurred:", error);
+    }
   };
 
   const handleSuggestionClick = async (question: string) => {
-    // if (!question.trim()) return;
+    if (!question.trim()) return;
 
-    // const newMessage = { role: "user", content: question };
-    // setMessages((prevMessages) => [...prevMessages, newMessage]);
-    // setInput("");
-    
-    // try {
-    //   const response = await fetch("api/messages", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify(newMessage),
-    //   });
+    const newMessage: MessageClient = { role: "user", content: question };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setInput("");
 
-    //   if (!response.ok) throw new Error("Failed to fetch from API");
-    //   const { content, chatId } = await response.json();
+    try {
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMessage),
+      });
 
-    //   const botMessage = { role: "assistant", content: content };
+      if (!response.ok) throw new Error("Failed to fetch from API");
+      const { content, chatId } = await response.json();
+      console.log(chatId)
+      const botMessage: MessageClient = { role: "assistant", content: content };
 
-    //   setMessages((prevMessages) => [...prevMessages, botMessage]);
-    //   setHistory((prevHistory) => {
-    //     const updatedHistory = prevHistory.map((chat) =>
-    //       chat.id === chatId
-    //         ? {
-    //             ...chat,
-    //             messages: [...chat.messages, newMessage, botMessage],
-    //           }
-    //         : chat,
-    //     );
-    //     if (!prevHistory.find((chat) => chat.id === chatId)) {
-    //       updatedHistory.push({
-    //         id: chatId,
-    //         title: newMessage.content,
-    //         messages: [newMessage, botMessage],
-    //       });
-    //     }
-    //     return updatedHistory;
-    //   });
-    // } catch (error) {
-    //   console.error("Error occurred:", error);
-    // }
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+      setHistory((prevHistory) => {
+        const updatedHistory = prevHistory.map((chat) =>
+          chat.id == chatId
+            ? {
+                ...chat,
+              }
+            : chat,
+        );
+        // if (!prevHistory.find((chat) => chat.id === chatId)) {
+          updatedHistory.push({
+            id: chatId,
+            title: newMessage.content,
+            messages: [newMessage, botMessage],
+          } as ChatClient);
+        // }
+        return updatedHistory;
+      });
+    } catch (error) {
+      console.error("Error occurred:", error);
+    }
   };
 
   return (
@@ -158,6 +177,9 @@ export const ChatProvider = ({ chat, children }: { chat?: WithMessagesChat, chil
         startNewChat,
         handleSuggestionClick,
         handleSubmit,
+        toggleSidebar,
+        sidebarOpen,
+        setSidebarOpen,
       }}
     >
       {children}

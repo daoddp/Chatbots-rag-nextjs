@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const chatId = url.searchParams.get("chatId");
   const message = await req.json();
-
+  console.log("message: ", message)
   try {
     const { userId } = await auth();
 
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const validatedMessage = promptMessageSchema.parse(message);
-    console.log(validatedMessage)
+    console.log("validateM: ", validatedMessage)
     const chat = chatId
       ? await prisma.chat.findUnique({
           where: { id: chatId },
